@@ -6,3 +6,4 @@
 # prebuilt libraries under lib/<runtime>/.
 # Adding a model means adding the folder, not editing this file.
 file(GLOB FLM_MODELS_RAI_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*/rai/*/*.cpp")
+file(GLOB FLM_MODELS_IRON_SOURCES "${CMAKE_CURRENT_LIST_DIR}/*/iron/*.cpp")

@@ -53,6 +53,11 @@ option(FLM_PORTABLE_BUILD "Build portable distribution with bundled runtime libr
 # It also fixes the NPU generation the build targets -- see utils/npu_platform.hpp.
 option(FLM_ENABLE_RAI
        "Reach kernels through ryzenai-corelib instead of FastFlowLM's own flow" OFF)
+option(FLM_ENABLE_IRON "Run complete IRON graphs through a Python worker" OFF)
+
+if(FLM_ENABLE_IRON)
+    add_compile_definitions(FLM_ENABLE_IRON=1)
+endif()
 
 if(FLM_ENABLE_RAI)
     # The corelib prefix lives outside this repository, so its headers have to
@@ -287,10 +292,14 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/../third_party/tokenizers-cpp
 # ———————————————————————————————————————————————
 file(GLOB SOURCES "src/*.cpp" "runner/*.cpp" "common/*.cpp" "common/*/*.cpp" "server/*.cpp" "pull/*.cpp" )
 file(GLOB HEADERS "include/*.hpp" "runner/*.hpp" "common/*.hpp" "common/*/*.hpp" "server/*.hpp" "pull/*.hpp")
+include(common/models/models_sources.cmake)
+if(FLM_ENABLE_IRON)
+    list(APPEND SOURCES ${FLM_MODELS_IRON_SOURCES})
+endif()
 list(FILTER SOURCES EXCLUDE REGEX ".*/common/rai/.*\\.cpp$")
 
-# Model sources live two levels deeper than the globs above reach. Only the rai
-# half exists as loose sources; it is built separately, below.
+# Model backend sources live below the source globs. IRON links into flm. RAI
+# builds as a separate library below.
 
 # Exclude files that depend on missing libraries for Linux
 if(NOT WIN32)
@@ -991,6 +1000,10 @@ endif()
 
 install(FILES model_list.json DESTINATION "${FLM_SHARE_DESTINATION}")
 install(FILES model_info.json DESTINATION "${FLM_SHARE_DESTINATION}")
+if(FLM_ENABLE_IRON)
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/../python/flm_iron"
+            DESTINATION "${FLM_SHARE_DESTINATION}/python")
+endif()
 
 # xclbins, which are loaded by shared libraries need to be in location
 # relative to the executable, so we install them relative to the binary.
