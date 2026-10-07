@@ -218,6 +218,7 @@ class model_list {
             for (const auto& [model_type, model_subset] : this->config["models"].items()) {
                 if (model_type == "whisper-v3") continue;
                 else if (model_type == "embed-gemma") continue;
+                else if (model_type == "embeddinggemma-2") continue;
                 for (const auto& [size, model_info] : model_subset.items()) {
                     nlohmann::json model_entry = {
                         {"name", model_type + ":" + size},
@@ -248,6 +249,7 @@ class model_list {
             for (const auto& [model_type, model_subset] : this->config["models"].items()) {
                 if (model_type == "whisper-v3") continue;
                 else if (model_type == "embed-gemma") continue;
+                else if (model_type == "embeddinggemma-2") continue;
                 for (const auto& [size, model_info] : model_subset.items()) {
                     // id uses the same "type:size" convention; created uses current epoch seconds
                     nlohmann::json model_entry = {
@@ -303,13 +305,14 @@ class model_list {
 
         /// \brief the kernel flow that runs a tag, read off the tag itself
         /// \param model_type the family part of the tag, e.g. "phi4-mini-it-rai"
-        /// \return "rai" for a family ending in "-rai", "flm" otherwise
+        /// \return the backend id encoded by the family name
         /// \note The name is the mechanism, not a label on top of one. A
         ///       corelib model is packaged differently from its FastFlowLM
         ///       namesake -- different weights, different quantization -- so it
         ///       is a different model to pull and a different tag to ask for,
         ///       and there is nothing left for a catalog key to disambiguate.
         static std::string backend_for_family(const std::string& model_type) {
+            if (model_type == "embeddinggemma-2") return "iron";
             static const std::string suffix = "-rai";
             if (model_type.size() > suffix.size() &&
                 model_type.compare(model_type.size() - suffix.size(),

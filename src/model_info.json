@@ -4013,5 +4013,31 @@
             "size": 3126,
             "sha256": "d0883072e01861ed0b2d47be3c16c36a8e81c224c7ffaa310c6558fb3f932b05"
         }
+    ],
+    "embeddinggemma-2:740m": [
+        {
+            "type": "file",
+            "path": "config.json",
+            "size": 4455,
+            "oid": "dc524b2cbef566d66d8533c67dc68a6a8f5d340a"
+        },
+        {
+            "type": "file",
+            "path": "model.safetensors",
+            "size": 1488915288,
+            "sha256": "197a32965d4b1105faf060417baa899e193fb73cd401f42ec9295234d5553d79"
+        },
+        {
+            "type": "file",
+            "path": "tokenizer.json",
+            "size": 32170510,
+            "sha256": "4d777ef5bdc1aa36227abdfb77c3e49e7b9c892d16e1b6bda41c393504828be4"
+        },
+        {
+            "type": "file",
+            "path": "tokenizer_config.json",
+            "size": 1599,
+            "oid": "a9afd12fb3ca2c418fd405320ace85ad46748d03"
+        }
     ]
 }
