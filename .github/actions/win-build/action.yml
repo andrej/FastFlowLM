@@ -230,6 +230,14 @@ runs:
           --config Release --parallel
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+        cmake -S ../extensions/iron -B build-iron-extension `
+          -G "Visual Studio 18 2026" "-DCMAKE_PREFIX_PATH=$prefix"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        cmake --build build-iron-extension --config Release --parallel 2
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        ctest --test-dir build-iron-extension -C Release --output-on-failure
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
     - name: Build Gemma4-open model extension
       if: inputs.model-extension == 'true' && (inputs.variant == 'XRT' || inputs.variant == 'HRX')
       shell: powershell

@@ -316,6 +316,10 @@ runs:
           -B build-model-extension-consumer \
           -DCMAKE_PREFIX_PATH="${prefix}"
         cmake --build build-model-extension-consumer -j"$(nproc)"
+        cmake -S extensions/iron -B build-iron-extension \
+          -DCMAKE_PREFIX_PATH="${prefix}" -DCMAKE_BUILD_TYPE=Release
+        cmake --build build-iron-extension --parallel 2
+        ctest --test-dir build-iron-extension --output-on-failure
 
     - name: Build Gemma4-open model extension
       if: inputs.model-extension == 'true' && (inputs.variant == 'XRT-portable' || inputs.variant == 'HRX-portable')
