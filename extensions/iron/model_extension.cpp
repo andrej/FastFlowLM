@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: Copyright (C) 2026 Advanced Micro Devices, Inc. All rights
-// reserved. SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright (C) 2026 Advanced Micro Devices, Inc. All rights reserved.
+// SPDX-License-Identifier: MIT
 
 #include "AutoModel/model_extension.h"
 #include "iron/worker.hpp"

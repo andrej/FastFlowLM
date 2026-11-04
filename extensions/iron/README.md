@@ -2,8 +2,7 @@
 
 This C++ plugin starts the IRON server and exchanges tokens/logits or text/embeddings
 through its versioned pipe protocol. Llama uses FLM's built-in frontend, tokenizer
-and sampler. EmbeddingGemma-2 uses IRON's text processor. No Python code is bundled
-with the plugin.
+and sampler. EmbeddingGemma-2 uses IRON's text processor.
 
 With IRON installed in the active environment, build FLM and this extension from
 the repository root:
