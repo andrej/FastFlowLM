@@ -89,6 +89,7 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
             if (!entry.is_object() || !entry.contains("name") ||
                 !entry["name"].is_string() ||
                 entry["name"].get_ref<const std::string&>().empty() ||
+                (entry.value("model_kind", "generation") != "embedding" && (
                 !entry.contains(backend::kBackendKey) ||
                 !entry.contains(backend::kBackendProviderKey) ||
                 !entry.contains("default_context_length") ||
@@ -96,7 +97,7 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
                 entry["default_context_length"].get<int>() <= 0 ||
                 !entry.contains("max_prefill_len") ||
                 !entry["max_prefill_len"].is_number_integer() ||
-                entry["max_prefill_len"].get<int>() <= 0 ||
+                entry["max_prefill_len"].get<int>() <= 0 )) ||
                 !entry.contains("details") ||
                 !entry["details"].is_object() ||
                 !entry["details"].contains("family") ||
@@ -109,6 +110,13 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
                     "backend_provider, positive default_context_length and "
                     "max_prefill_len, and details.family");
             }
+            const auto kind = entry.value("model_kind", "generation");
+            if (kind != "generation" && kind != "embedding")
+                throw std::runtime_error("Unknown model_kind for '" + tag + "'");
+            if (kind == "embedding" &&
+                (!entry.contains("frontend_provider") || !entry["frontend_provider"].is_string() ||
+                 entry["frontend_provider"].get<std::string>().empty()))
+                throw std::runtime_error("Embedding entry must name frontend_provider: " + tag);
             for (const char* field :
                  {backend::kBackendKey,
                   backend::kBackendProviderKey}) {
@@ -122,6 +130,9 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
                         "' must be a non-empty string");
                 }
             }
+            if (entry.contains("file_records") &&
+                (!entry["file_records"].is_array() || entry["file_records"].empty()))
+                throw std::runtime_error("file_records must be a non-empty array: " + tag);
             // flm pull reads these unconditionally for every catalog entry.
             for (const char* field : {"url", "flm_min_version"}) {
                 if (!entry.contains(field) || !entry[field].is_string() ||
@@ -230,6 +241,7 @@ inline void validate_model_catalog_overlay(
                     "' names unregistered frontend family '" +
                     family + "'");
             }
+            if (entry.value("model_kind", "generation") == "embedding") continue;
             const std::string selected_backend =
                 entry.at(backend::kBackendKey).get<std::string>();
             const std::string provider =
