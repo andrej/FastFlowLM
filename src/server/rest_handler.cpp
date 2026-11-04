@@ -518,7 +518,7 @@ static json convert_tool_responses_gemma4(json messages) {
 ///@return the rest handler
 RestHandler::RestHandler(model_list& models, ModelDownloader& downloader, program_args_t& args,
                          flm_rt::device* npu_device)
-    : supported_models(models), downloader(downloader), default_model_tag(args.model_tag), current_model_tag(""), modelscope(args.modelscope), asr(args.asr), embed(args.embed), img_pre_resize(args.img_pre_resize), preemption(args.preemption), backend(args.backend) {
+    : supported_models(models), downloader(downloader), default_model_tag(args.model_tag), current_model_tag(""), modelscope(args.modelscope), asr(args.asr), img_pre_resize(args.img_pre_resize), preemption(args.preemption), backend(args.backend) {
 
     // RAI receives the device from corelib; non-RAI creates its own here.
     if (npu_device != nullptr) {
@@ -544,9 +544,9 @@ RestHandler::RestHandler(model_list& models, ModelDownloader& downloader, progra
     this->prefix_slots = args.prefix_slots;
     this->prefix_min_gain = args.prefix_min_gain;
 
+    default_model_tag = supported_models.rectify_model_tag(default_model_tag);
     const bool embedding_only = supported_models.is_model_supported(default_model_tag) &&
-        (supported_models.get_model_info(default_model_tag).second.value("model_kind", "generation") == "embedding" ||
-         supported_models.get_model_info(default_model_tag).second.at("details").at("family") == "embed-gemma");
+        is_embedding_model(supported_models.get_model_info(default_model_tag).second);
     if (embedding_only) ensure_embed_model_loaded(default_model_tag);
     // Initialize chat bot with default model
 #ifndef FASTFLOWLM_LINUX_LIMITED_MODELS
@@ -554,7 +554,7 @@ RestHandler::RestHandler(model_list& models, ModelDownloader& downloader, progra
         std::string whisper_tag = "whisper-v3:turbo";
         ensure_asr_model_loaded(whisper_tag);
     }
-    if (this->embed && !embedding_only) {
+    if (args.embed && !embedding_only) {
         std::string embed_tag = "embed-gemma:300m";
         ensure_embed_model_loaded(embed_tag);
     }
@@ -562,7 +562,7 @@ RestHandler::RestHandler(model_list& models, ModelDownloader& downloader, progra
     if (this->asr) {
         header_print("Error", "ASR models are not supported in this build");
     }
-    if (this->embed && !embedding_only) {
+    if (args.embed && !embedding_only) {
         header_print("Error", "Embedding models are not supported in this build");
     }
 #endif
@@ -784,45 +784,6 @@ void RestHandler::handle_systemone(const std::string& raw_body,
         reply["__http_body"] = {{"detail", std::string("the server failed on this request (") + e.what() + ")"}};
     }
     send_response(reply);
-}
-
-///@brief Ensure the embed model is loaded
-///@param model_tag the model tag
-void RestHandler::ensure_embed_model_loaded(const std::string& model_tag) {
-    if (!supported_models.is_model_supported(model_tag))
-        throw std::invalid_argument("Unknown embedding model: " + model_tag);
-    const auto selected = supported_models.get_model_info(model_tag);
-    if (selected.second.value("model_kind", "generation") != "embedding" &&
-        selected.second.at("details").at("family") != "embed-gemma")
-        throw std::invalid_argument("Model is not an embedding model: " + model_tag);
-    if (auto_embedding_engine && current_embedding_tag == selected.first) return;
-    std::string ensure_tag = selected.first;
-    switch (this->downloader.is_model_downloaded(ensure_tag, false, /*fast_check=*/true)) {
-        case ModelDownloader::ModelStatus::Ready:
-            break;
-        case ModelDownloader::ModelStatus::Outdated:
-        case ModelDownloader::ModelStatus::Missing:
-            this->downloader.pull_model(ensure_tag, this->modelscope);
-            break;
-        case ModelDownloader::ModelStatus::Incompatible:
-            header_print("ERROR", "EmbeddingGemma is incompatible with this version of FastFlowLM, skipping... ");
-            this->embed = false;
-            return;
-    }
-    auto [embedding_model_tag, auto_embedding_engine] = get_auto_embedding_model(ensure_tag, this->npu_device_inst, this->supported_models);
-    this->auto_embedding_engine = std::move(auto_embedding_engine);
-    auto [new_embedding_model_tag, embedding_model_info] = this->supported_models.get_model_info(embedding_model_tag);
-    std::string embedding_model_path = this->supported_models.get_model_path(new_embedding_model_tag);
-    try {
-        this->auto_embedding_engine->load_model(embedding_model_path, embedding_model_info, this->preemption);
-    }
-    catch (const std::exception& e) {
-        header_print("ERROR", "Failed to load embedding model: " + std::string(e.what()));
-        this->auto_embedding_engine.reset();
-        throw;
-    }
-    current_embedding_tag = new_embedding_model_tag;
-    this->embed = true;
 }
 
 ///@brief Configure chat engine parameters from options and request
@@ -1220,69 +1181,6 @@ void RestHandler::handle_chat(const json& request,
             this->auto_chat_engine->clear_context();
         }
     } catch (const std::exception& e) {
-        json error_response = ExceptionResponse(e);
-        send_response(error_response);
-    }
-}
-
-///@brief Handle the embeddings request
-///@param request the request
-///@param send_response the send response
-///@param send_streaming_response the send streaming response
-void RestHandler::handle_embeddings(const json& request,
-                                   std::function<void(const json&)> send_response,
-                                   StreamResponseCallback send_streaming_response) {
-    try {
-        std::lock_guard lock(embedding_mutex);
-        std::string model = request["model"];
-        std::vector<std::string> inputs;
-
-        if (request["input"].is_string()) {
-            inputs.push_back(request["input"].get<std::string>());
-        }
-        else if (request["input"].is_array()) {
-            for (const auto& item : request["input"]) {
-                inputs.push_back(item.get<std::string>());
-            }
-        }
-
-        uint32_t dimensions = 0;
-        if (request.contains("dimensions")) {
-            if (!request["dimensions"].is_number_integer() || request["dimensions"].get<int64_t>() <= 0 ||
-                request["dimensions"].get<int64_t>() > UINT32_MAX)
-                throw std::invalid_argument("dimensions must be a positive uint32");
-            dimensions = request["dimensions"].get<uint32_t>();
-        }
-        ensure_embed_model_loaded(model);
-        json response;
-        if (this->embed) {
-            json embedding_data = json::array();
-            for (size_t i = 0; i < inputs.size(); ++i) {
-                std::cout << "Embedding input[" << i << "]: " << "\n" << inputs[i] << std::endl;
-                std::vector<float> embedding_result = this->auto_embedding_engine->embed(inputs[i], embedding_task_type_t::task_query, dimensions);
-                embedding_data.push_back({
-                    {"object", "embedding"},
-                    {"embedding", embedding_result},
-                    {"index", i}
-                });
-            }
-
-            response = {
-                {"object", "list"},
-                {"data", embedding_data},
-                {"model", model},
-                {"usage", {
-                    {"prompt_tokens", 0},
-                    {"total_tokens", 0}
-                }}
-            };
-        }
-        else {
-            header_print("Warning", "No embedding model loaded");
-        }
-        send_response(response);
-    }
-    catch (const std::exception& e) {
         json error_response = ExceptionResponse(e);
         send_response(error_response);
     }
