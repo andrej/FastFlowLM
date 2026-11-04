@@ -15,9 +15,10 @@ endif()
 add_library(iron_extension SHARED model_extension.cpp)
 target_link_libraries(iron_extension PRIVATE iron_worker FastFlowLM::ModelExtension)
 target_compile_definitions(iron_extension PRIVATE FLM_MODEL_EXTENSION_IMPLEMENTATION)
-configure_file(model-list.json model-list.json COPYONLY)
-file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/extension.json" CONTENT
-    "{\"schema_version\":1,\"name\":\"iron\",\"version\":\"1\",\"library\":\"$<$<BOOL:${CMAKE_CONFIGURATION_TYPES}>:$<CONFIG>/>$<TARGET_FILE_NAME:iron_extension>\",\"catalog\":\"model-list.json\"}\n")
+file(GENERATE OUTPUT "$<TARGET_FILE_DIR:iron_extension>/model-list.json"
+    INPUT "${CMAKE_CURRENT_SOURCE_DIR}/model-list.json")
+file(GENERATE OUTPUT "$<TARGET_FILE_DIR:iron_extension>/extension.json" CONTENT
+    "{\"schema_version\":1,\"name\":\"iron\",\"version\":\"1\",\"library\":\"$<TARGET_FILE_NAME:iron_extension>\",\"catalog\":\"model-list.json\"}\n")
 include(CTest)
 if(BUILD_TESTING)
     add_executable(test_iron_worker tests/test_worker.cpp)

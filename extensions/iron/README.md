@@ -29,7 +29,8 @@ compiled artifacts. `FLM_IRON_PYTHON` optionally selects the server interpreter.
 The bundle consists of `extension.json`, `model-list.json`, and the shared library.
 It can be built independently with FLM's installed `ModelExtension` SDK, Boost
 headers, and nlohmann/json headers (`JSON_INCLUDE_DIR` when outside this source tree).
-Match the SDK's XRT/HRX runtime to the host FLM build.
+Match the SDK's XRT/HRX runtime to the host FLM build. With multi-configuration
+generators, the bundle is in the configuration subdirectory (e.g. `Release/`).
 
 To add a model, register its existing FLM frontend family (or an embedding family)
 in `model_extension.cpp`, add a catalog entry with `iron_model` naming the IRON
