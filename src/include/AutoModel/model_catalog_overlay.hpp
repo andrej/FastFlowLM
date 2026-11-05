@@ -16,6 +16,11 @@
 
 namespace flm::catalog {
 
+/// \brief Read a model's kind; catalogs without it describe generation models.
+inline std::string model_kind(const nlohmann::json& info) {
+    return info.value("model_kind", "generation");
+}
+
 struct ModelCatalogOverlay {
     std::string path;
     nlohmann::json document;
@@ -89,7 +94,7 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
             if (!entry.is_object() || !entry.contains("name") ||
                 !entry["name"].is_string() ||
                 entry["name"].get_ref<const std::string&>().empty() ||
-                (entry.value("model_kind", "generation") != "embedding" && (
+                (model_kind(entry) != "embedding" && (
                 !entry.contains(backend::kBackendKey) ||
                 !entry.contains(backend::kBackendProviderKey) ||
                 !entry.contains("default_context_length") ||
@@ -110,7 +115,7 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
                     "backend_provider, positive default_context_length and "
                     "max_prefill_len, and details.family");
             }
-            const auto kind = entry.value("model_kind", "generation");
+            const auto kind = model_kind(entry);
             if (kind != "generation" && kind != "embedding")
                 throw std::runtime_error("Unknown model_kind for '" + tag + "'");
             if (kind == "embedding" &&
@@ -241,7 +246,7 @@ inline void validate_model_catalog_overlay(
                     "' names unregistered frontend family '" +
                     family + "'");
             }
-            if (entry.value("model_kind", "generation") == "embedding") continue;
+            if (model_kind(entry) == "embedding") continue;
             const std::string selected_backend =
                 entry.at(backend::kBackendKey).get<std::string>();
             const std::string provider =
