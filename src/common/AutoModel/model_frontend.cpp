@@ -422,7 +422,7 @@ std::unique_ptr<AutoEmbeddingModel> FrontendRegistry::create_embedding(
 std::vector<std::string> FrontendRegistry::available() const {
     std::lock_guard lock(mutex_);
     std::vector<std::string> families;
-    families.reserve(factories_.size());
+    families.reserve(providers_.size());
     for (const auto& [family, factory] : providers_) {
         (void)factory;
         families.push_back(family);
@@ -697,7 +697,7 @@ void FrontendRegistry::load_extension(
     std::lock_guard lock(mutex_);
     if (extension->catalog) {
         std::vector<std::string> frontends;
-        frontends.reserve(factories_.size());
+        frontends.reserve(providers_.size());
         for (const auto& [family, factory] : providers_) {
             (void)factory;
             frontends.push_back(family);
@@ -818,11 +818,11 @@ void FrontendRegistry::load_extension(
                 embeddings_.emplace(family, make_extension_embedding_factory(
                     std::move(pending), extension->root, extension->asset_root,
                     std::static_pointer_cast<void>(extension)));
-            } else factories_.emplace(
-                family, make_extension_frontend_factory(
-                    std::move(pending), extension->root,
-                    extension->asset_root,
+            } else {
+                factories_.emplace(family, make_extension_frontend_factory(
+                    std::move(pending), extension->root, extension->asset_root,
                     std::static_pointer_cast<void>(extension)));
+            }
             providers_.emplace(family, frontend_provider);
         }
         extensions_.push_back(std::move(extension));

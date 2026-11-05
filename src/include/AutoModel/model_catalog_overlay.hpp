@@ -105,7 +105,7 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
                 entry["default_context_length"].get<int>() <= 0 ||
                 !entry.contains("max_prefill_len") ||
                 !entry["max_prefill_len"].is_number_integer() ||
-                entry["max_prefill_len"].get<int>() <= 0 )) ||
+                entry["max_prefill_len"].get<int>() <= 0)) ||
                 !entry.contains("details") ||
                 !entry["details"].is_object() ||
                 !entry["details"].contains("family") ||
@@ -121,10 +121,6 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
             const auto kind = model_kind(entry);
             if (kind != kGenerationModelKind && kind != kEmbeddingModelKind)
                 throw std::runtime_error("Unknown model_kind for '" + tag + "'");
-            if (kind == kEmbeddingModelKind &&
-                (!entry.contains("frontend_provider") || !entry["frontend_provider"].is_string() ||
-                 entry["frontend_provider"].get<std::string>().empty()))
-                throw std::runtime_error("Embedding entry must name frontend_provider: " + tag);
             for (const char* field :
                  {backend::kBackendKey,
                   backend::kBackendProviderKey}) {
@@ -187,14 +183,14 @@ inline ModelCatalogOverlay load_model_catalog_overlay(
                     }
                 }
             }
-            if ((entry.value("vlm", false) ||
+            if ((kind == kEmbeddingModelKind || entry.value("vlm", false) ||
                  entry.value("asr", false)) &&
                 (!entry.contains("frontend_provider") ||
                  !entry["frontend_provider"].is_string() ||
                  entry["frontend_provider"]
                      .get_ref<const std::string&>().empty())) {
                 throw std::runtime_error(
-                    "Multimodal model extension catalog entry '" + tag +
+                    "Model extension catalog entry '" + tag +
                     "' must name a frontend_provider");
             }
         }
