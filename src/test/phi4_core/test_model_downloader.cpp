@@ -260,6 +260,19 @@ void TestCatalogFileRecordsDoNotNeedGlobalMetadata() {
     auto catalog = ReadJson(fixture.catalog_path);
     catalog["models"]["test-model"]["1b"]["file_records"] =
         ReadJson(fixture.info_path).at("test-model:1b");
+    auto& records = catalog["models"]["test-model"]["1b"]["file_records"];
+    records[1]["lfs"] = {{"oid", records[1]["sha256"]}};
+    records[1].erase("sha256");
+    records[2]["oid"] = download_utils::calculate_git_blob_oid((fixture.model_path() / "b.bin").string());
+    records[2].erase("sha256");
+    for (auto& record : records) {
+        auto& hash = record.contains("sha256") ? record["sha256"] :
+                     record.contains("lfs") ? record["lfs"]["oid"] : record["oid"];
+        auto value = hash.get<std::string>();
+        std::transform(value.begin(), value.end(), value.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        hash = value;
+    }
     Write(fixture.catalog_path, catalog.dump());
     fs::remove(fixture.info_path);
     fixture.models = model_list(fixture.catalog_string, fixture.root_string);
@@ -866,7 +879,7 @@ void TestShippedCatalogDeclaresTheDflashDependant() {
     TEST_REQUIRE(info.at("details").at("family") == "gemma4e-dflash");
     TEST_REQUIRE(info.at("xclbin_folder") == "Nemotron-3.5-Bolt-E4B-DFlash-NPU2");
     TEST_REQUIRE(info.at("files").get<std::vector<std::string>>() ==
-                 (std::vector<std::string>{"config.json", "dflash_weight.q4nx", "LICENSE.OpenMDW-1.1"}));
+                 (std::vector<std::string>{"config.json", "dflash_weight.q4nx"}));
     // the base entry is the shipped plain-decode tag, untouched
     const auto base = models.get_model_info("nemotron3.5-bolt:e4b").second;
     TEST_REQUIRE(base.at("name") == "Nemotron-3.5-Bolt-E4B-NPU2");
@@ -899,7 +912,7 @@ void TestShippedCatalogDeclaresTheDflashDependant() {
     TEST_REQUIRE(q38_info.at("details").at("family") == "qwen3.8-dflash2");
     TEST_REQUIRE(q38_info.at("xclbin_folder") == "Qwen3.8-27B-NPU2");
     TEST_REQUIRE(q38_info.at("files").get<std::vector<std::string>>() ==
-                 (std::vector<std::string>{"config.json", "dflash_weight.q4nx", "LICENSE"}));
+                 (std::vector<std::string>{"config.json", "dflash_weight.q4nx"}));
     TEST_REQUIRE(models.get_model_info("qwen3.8-mtp:27b").second.at("name") == "Qwen3.8-27B-NPU2");
 }
 

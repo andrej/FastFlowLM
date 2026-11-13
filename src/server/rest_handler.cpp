@@ -771,6 +771,10 @@ bool RestHandler::ensure_model_loaded(const std::string& model_tag,
     // Compared in its resolved form, which is what current_model_tag holds, so
     // "llama3.2" or "Ollama/llama3.2:1b" does not reload llama3.2:1b each time.
     const std::string resolved_tag = supported_models.rectify_model_tag(model_tag);
+    if (is_embedding_model(supported_models.get_model_info(resolved_tag).second)) {
+        header_print_r("ERROR", "Model '" << resolved_tag << "' is an embedding model, not a chat model.");
+        return false;
+    }
     if (current_model_tag != resolved_tag || current_backend != requested_backend) {
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         // The old model is released before the new one is built, so from here
@@ -831,8 +835,10 @@ bool RestHandler::ensure_model_loaded(const std::string& model_tag,
 ///      catalog does not have with a 404 instead of a failed load.
 ///@param model_tag the model tag
 bool RestHandler::is_known_model(const std::string& model_tag) {
-    return model_tag == "model-faker" ||
-           supported_models.is_model_supported(supported_models.rectify_model_tag(model_tag));
+    if (model_tag == "model-faker") return true;
+    const auto tag = supported_models.rectify_model_tag(model_tag);
+    return supported_models.is_model_supported(tag) &&
+           !is_embedding_model(supported_models.get_model_info(tag).second);
 }
 
 ///@brief Ensure the asr model is loaded
