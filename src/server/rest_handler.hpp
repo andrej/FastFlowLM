@@ -148,6 +148,7 @@ private:
     std::unique_ptr<AutoEmbeddingModel> auto_embedding_engine;
     std::string current_embedding_tag;
     std::mutex embedding_mutex;
+    bool embeddings_enabled = false;
     model_list& supported_models;
     ModelDownloader& downloader;
     std::string current_model_tag;
